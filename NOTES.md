@@ -54,8 +54,8 @@
 - [x] **把密钥移出代码**（v1.3.0）：加「⚙ 设置」菜单，`URL/TOKEN/收件邮箱` 存 `GM_setValue`（键 `kitsune_cfg_url/_token/_email`）；脚本随 POST 传 `to`，Code.gs 已支持 `data.to` 兜底。代码无密钥。
 - [x] `buildEmail` 链接 `href` 白名单（v1.3.0）：`safeLink()` 只放行 host=kitsune.ee 的 http(s) 链接，且 href 已 `escapeHtml`。
 - [x] 仓库骨架：`.gitignore`（AGENTS.md/CLAUDE.md/GEMINI.md/.omc/HANDOFF.md/*.local）、`config.example`、README 改为“菜单填密钥”。
-- [ ] 可选：增加 `type=at`（被@）提醒。
-- [ ] **待真机验证**：v1.3.0 重新导入 Tampermonkey → 点「⚙ 设置」填三项 → 「① 测试邮件」能收到。
+- [x] 增加 `type=at`（被@）提醒（v1.4.0）：「⚙ 设置」第④项开关（键 `kitsune_cfg_at`，默认关）；开启时 poll 多拉 `AT_PATH` 并与回复页合并去重、共享 seen/基线。**注：@页结构未真机验证**（默认关不影响现有使用）。
+- [ ] **待真机验证**：v1.4.0 重新导入 Tampermonkey → 点「⚙ 设置」填四项（含被@开关）→ 「① 测试邮件」能收到；若开启被@，需在真机确认 @提醒页能正常解析。
 
 ## 维护提示
 

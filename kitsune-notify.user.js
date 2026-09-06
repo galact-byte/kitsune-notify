@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         稻荷神社 回复邮件提醒
 // @namespace    kitsune-notify
-// @version      1.3.0
+// @version      1.4.0
 // @description  轮询 Discuz 提醒页(view=mypost)，发现回复/@/评分等新提醒就通过 Google Apps Script 发到邮箱。支持关机期间累积、下次开浏览器补发。
 // @author       you
 // @match        https://kitsune.ee/*
@@ -26,11 +26,13 @@
   var CFG_URL = 'kitsune_cfg_url';
   var CFG_TOKEN = 'kitsune_cfg_token';
   var CFG_EMAIL = 'kitsune_cfg_email';
+  var CFG_AT = 'kitsune_cfg_at';   // 是否也提醒“被@”(type=at)，默认关
   // ===============================================
 
   // ---------- 可调参数 ----------
   var POLL_INTERVAL_MIN = 5;                // 轮询间隔（分钟）
   var NOTICE_PATH = '/home.php?mod=space&do=notice&view=mypost&type=post'; // 「我的帖子」→ 回复(type=post)
+  var AT_PATH = '/home.php?mod=space&do=notice&view=mypost&type=at';       // 被@(type=at)，仅开关开启时轮询
   var SITE = 'https://kitsune.ee/';
   var SEEN_KEY = 'kitsune_seen_ids';
   var INIT_KEY = 'kitsune_initialized';
@@ -48,7 +50,8 @@
     return {
       url: String(GM_getValue(CFG_URL, '') || '').trim(),
       token: String(GM_getValue(CFG_TOKEN, '') || '').trim(),
-      email: String(GM_getValue(CFG_EMAIL, '') || '').trim()
+      email: String(GM_getValue(CFG_EMAIL, '') || '').trim(),
+      at: !!GM_getValue(CFG_AT, false)
     };
   }
   function cfgReady(cfg) {
@@ -63,10 +66,13 @@
     if (token === null) return;
     var email = prompt('③ 收件邮箱（提醒发到哪）：', cfg.email);
     if (email === null) return;
+    var atAns = prompt('④ 是否也提醒“被@”(type=at)？填 y 开启，其他关闭（默认关）：', cfg.at ? 'y' : 'n');
+    if (atAns === null) return;
     GM_setValue(CFG_URL, String(url).trim());
     GM_setValue(CFG_TOKEN, String(token).trim());
     GM_setValue(CFG_EMAIL, String(email).trim());
-    if (cfgReady()) toast('设置已保存。可点「① 发送测试邮件」验证。');
+    GM_setValue(CFG_AT, /^y/i.test(String(atAns).trim()));
+    if (cfgReady()) toast('设置已保存。被@提醒：' + (/^y/i.test(String(atAns).trim()) ? '开' : '关') + '。可点「① 发送测试邮件」验证。');
     else toast('已保存，但有值看起来不对：URL 需以 /exec 结尾、邮箱需含 @、TOKEN 不能空。', 'warn');
   }
 
@@ -216,7 +222,22 @@
 
   function say(manual, msg, type) { log(msg); if (manual) toast(msg, type); }
 
-  // 轮询一次。manual=true 时每一步都用 alert 反馈结果，方便你验证。
+  // 拉一个提醒页并解析，返回 {status:'ok'|'blocked'|'loggedout', items}
+  function fetchNoticePage(path) {
+    return fetch(SITE + path.replace(/^\//, ''), { credentials: 'include' })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        // 频率/安全拦截检测（论坛把请求拦了会返回没有 .nts 的提示页）
+        if (/访问过于频繁|刷新过于频繁|请稍(候|后)再试|attackevasive|请求来路|安全提示|抱歉/.test(html) && !/class="nts"/.test(html)) {
+          return { status: 'blocked', items: [] };
+        }
+        var res = parseNotices(html);
+        if (res.loggedOut) return { status: 'loggedout', items: [] };
+        return { status: 'ok', items: res.items };
+      });
+  }
+
+  // 轮询一次。manual=true 时每一步都用 toast 反馈结果，方便你验证。
   function poll(manual) {
     // 多标签页协调：间隔内只跑一次（手动触发跳过此限制）
     var now = Date.now();
@@ -224,36 +245,50 @@
     if (!manual && now - last < POLL_INTERVAL_MIN * 60 * 1000) return;
     GM_setValue(LASTPOLL_KEY, now);
 
-    log('开始检查提醒…');
-    fetch(SITE + NOTICE_PATH.replace(/^\//, ''), { credentials: 'include' })
-      .then(function (r) { return r.text(); })
-      .then(function (html) {
-        // 频率/安全拦截检测（论坛把请求拦了会返回没有 .nts 的提示页）
-        if (/访问过于频繁|刷新过于频繁|请稍(候|后)再试|attackevasive|请求来路|安全提示|抱歉/.test(html) && !/class="nts"/.test(html)) {
+    var cfg = getCfg();
+    var paths = [NOTICE_PATH];
+    if (cfg.at) paths.push(AT_PATH);   // 开关开启时才多拉“被@”页
+
+    log('开始检查提醒…' + (cfg.at ? '（含被@）' : ''));
+    Promise.all(paths.map(fetchNoticePage))
+      .then(function (results) {
+        // 任一页被拦/未登录：提示并中止，避免把不完整集当基线
+        if (results.some(function (r) { return r.status === 'blocked'; })) {
           say(manual, '论坛拦截了这次请求（访问过于频繁/安全校验）。别连续手点，等几分钟让自动轮询来。', 'warn');
           return;
         }
-        var res = parseNotices(html);
-        if (res.loggedOut) { say(manual, '检测到未登录，请先登录论坛再点。', 'warn'); return; }
+        if (results.some(function (r) { return r.status === 'loggedout'; })) {
+          say(manual, '检测到未登录，请先登录论坛再点。', 'warn');
+          return;
+        }
+
+        // 合并多页条目，按 notice ID 去重（同一 ID 不会跨类型重复，佝保险）
+        var idMap = {};
+        var items = [];
+        results.forEach(function (res) {
+          res.items.forEach(function (it) {
+            if (!idMap[it.id]) { idMap[it.id] = 1; items.push(it); }
+          });
+        });
 
         var seen = getSeen();
         var seenSet = {};
         seen.forEach(function (id) { seenSet[id] = 1; });
 
-        // 首次运行：提醒页会返回历史(已读+未读，最多30条)。把当前全部设为基线、不发，
-        // 避免刚装好就被一堆老回复淹没；之后出现的新回复才发邮件。
+        // 首次运行：提醒页会返回历史(已读+未读，每类最多30条)。把当前全部设为基线、不发，
+        // 避免刚装好就被一堆老提醒淹没；之后出现的新提醒才发邮件。
         if (!GM_getValue(INIT_KEY, false)) {
-          saveSeen(seen.concat(res.items.map(function (it) { return it.id; })));
+          saveSeen(seen.concat(items.map(function (it) { return it.id; })));
           GM_setValue(INIT_KEY, true);
-          say(manual, '首次运行：已把当前 ' + res.items.length + ' 条设为基线（不发历史）。之后新回复才发。想立刻看真实邮件：点③再点②。');
+          say(manual, '首次运行：已把当前 ' + items.length + ' 条设为基线（不发历史）。之后新提醒才发。想立刻看真实邮件：点③再点②。');
           return;
         }
 
-        var fresh = res.items.filter(function (it) { return !seenSet[it.id]; });
-        log('解析到 ' + res.items.length + ' 条，未通知过 ' + fresh.length + ' 条');
+        var fresh = items.filter(function (it) { return !seenSet[it.id]; });
+        log('解析到 ' + items.length + ' 条，未通知过 ' + fresh.length + ' 条');
 
         if (!fresh.length) {
-          say(manual, '解析到 ' + res.items.length + ' 条提醒，但都已通知过（无新回复）。想重发点③。');
+          say(manual, '解析到 ' + items.length + ' 条提醒，但都已通知过（无新提醒）。想重发点③。');
           return;
         }
 
@@ -263,14 +298,14 @@
           saveSeen(seen.concat(fresh.map(function (it) { return it.id; })));
           say(manual, '已发邮件通知 ' + fresh.length + ' 条，请查收邮箱。');
         }).catch(function (err) {
-          say(manual, '解析到新回复，但发邮件失败：\n' + err, 'error');
+          say(manual, '解析到新提醒，但发邮件失败：\n' + err, 'error');
         });
       })
       .catch(function (err) { say(manual, '拉取提醒页失败：' + err, 'error'); });
   }
 
   // ---------- 菜单命令（方便你验证/维护） ----------
-  GM_registerMenuCommand('⚙ 设置（URL / TOKEN / 邮箱）', openSettings);
+  GM_registerMenuCommand('⚙ 设置（URL / TOKEN / 邮箱 / 被@）', openSettings);
   GM_registerMenuCommand('① 发送测试邮件', function () {
     var mail = buildEmail([{ id: 'test', text: '这是一封测试邮件——若收到说明接线成功。', time: new Date().toLocaleString(), link: SITE }]);
     sendEmail(mail.subject.replace('新提醒', '测试'), mail.html)
