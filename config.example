@@ -2,9 +2,9 @@
 #
 # 本仓库不含任何真实密钥。下面是你部署时要填的值，填在各自位置即可，别提交回仓库。
 
-# ── 油猴脚本端（浏览器里，通过菜单「⚙ 设置」填，存 GM_setValue，不写进代码）──
+# ── 油猴脚本端（浏览器里，点论坛页右下角图标打开面板填写，存 GM_setValue，不写进代码）──
 APPS_SCRIPT_URL=https://script.google.com/macros/s/xxxxxxxx/exec   # 你部署的 Web App，必须以 /exec 结尾
-TOKEN=换成你自己的随机口令                                          # 须与 Code.gs 里的 TOKEN 完全一致
+TOKEN=REPLACE_WITH_YOUR_TOKEN                                        # 须与 Code.gs 里的 TOKEN 完全一致
 TO_EMAIL=你的收件邮箱@example.com                                   # 提醒发到哪
 
 # ── Apps Script 端（Code.gs 开头，粘进 script.google.com 后改）──
