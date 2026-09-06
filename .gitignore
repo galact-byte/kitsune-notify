@@ -4,8 +4,12 @@ CLAUDE.md
 GEMINI.md
 .omc/
 
-# 会话交接稿（含本机路径与过期待办，不进公开仓库）
+# 会话交接稿、维护笔记、本地单测（不进公开仓库）
 HANDOFF.md
+NOTES.md
+http-result.js
+test/
+config.example
 
 # 本地密钥/私有配置副本（真实值只在浏览器 GM_setValue 与你部署的 Apps Script 里）
 config.local

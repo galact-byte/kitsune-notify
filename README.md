@@ -87,19 +87,14 @@
 ```
 kitsune-notify.user.js   油猴脚本（主入口）
 Code.gs                  Apps Script 发信端
-config.example           配置项说明（无真实密钥）
-http-result.js           发信/提醒页结果分类（与油猴脚本保持一致，供单测）
-test/                    Node 单测
-NOTES.md                 维护笔记（论坛事实、踩过的坑）
 LICENSE                  MIT
+README.md                本部署手册
 ```
 
 语法检查：
 
 ```bash
 node --check kitsune-notify.user.js
-node --check http-result.js
-node test/http-result.test.js
 ```
 
 ---
