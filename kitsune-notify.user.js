@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         稻荷神社 回复邮件提醒
 // @namespace    kitsune-notify
-// @version      1.4.0
+// @version      1.4.1
 // @description  轮询 Discuz 提醒页(view=mypost)，发现回复/@/评分等新提醒就通过 Google Apps Script 发到邮箱。支持关机期间累积、下次开浏览器补发。
 // @author       you
 // @match        https://kitsune.ee/*
@@ -38,6 +38,8 @@
   var INIT_KEY = 'kitsune_initialized';
   var LASTPOLL_KEY = 'kitsune_last_poll_ts';
   var MAX_SEEN = 1000;                        // 去重记录上限，防止无限增长
+  var PAGE_GAP_MS = 3000;                     // 多提醒页串行拉取的页间隔（毫秒），避免突发请求触发 flood 防御
+  var MANUAL_MIN_GAP_S = 30;                  // 手动「立即检查」最小间隔（秒），连点会被拦住
   // ------------------------------
 
   function log() {
@@ -237,20 +239,39 @@
       });
   }
 
+  function delay(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
+
+  // 串行拉多个提醒页，页间隔 PAGE_GAP_MS，避免两个请求同时到达触发 Discuz flood 防御
+  function fetchNoticePages(paths) {
+    var out = [];
+    return paths.reduce(function (p, path, i) {
+      return p.then(function () {
+        return (i > 0 ? delay(PAGE_GAP_MS) : Promise.resolve())
+          .then(function () { return fetchNoticePage(path); })
+          .then(function (r) { out.push(r); });
+      });
+    }, Promise.resolve()).then(function () { return out; });
+  }
+
   // 轮询一次。manual=true 时每一步都用 toast 反馈结果，方便你验证。
   function poll(manual) {
-    // 多标签页协调：间隔内只跑一次（手动触发跳过此限制）
+    // 多标签页协调：自动轮询间隔内只跑一次
     var now = Date.now();
     var last = GM_getValue(LASTPOLL_KEY, 0);
     if (!manual && now - last < POLL_INTERVAL_MIN * 60 * 1000) return;
+    // 手动连点防护：距上次拉取不足 MANUAL_MIN_GAP_S 秒就拦住，避免被论坛频率拉黑
+    if (manual && now - last < MANUAL_MIN_GAP_S * 1000) {
+      toast('刚查过（' + Math.ceil((MANUAL_MIN_GAP_S * 1000 - (now - last)) / 1000) + 's 内别连点），避免被论坛频率拦截。', 'warn');
+      return;
+    }
     GM_setValue(LASTPOLL_KEY, now);
 
     var cfg = getCfg();
     var paths = [NOTICE_PATH];
-    if (cfg.at) paths.push(AT_PATH);   // 开关开启时才多拉“被@”页
+    if (cfg.at) paths.push(AT_PATH);   // 开关开启时才多拉“被@”页（串行、页间隔）
 
     log('开始检查提醒…' + (cfg.at ? '（含被@）' : ''));
-    Promise.all(paths.map(fetchNoticePage))
+    fetchNoticePages(paths)
       .then(function (results) {
         // 任一页被拦/未登录：提示并中止，避免把不完整集当基线
         if (results.some(function (r) { return r.status === 'blocked'; })) {
