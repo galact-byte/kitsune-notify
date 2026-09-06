@@ -1,0 +1,18 @@
+# 本地 AI 配置（仅本地使用，不进版本控制）
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.omc/
+
+# 交接/维护笔记（本地私有，含站点与调试细节）
+HANDOFF.md
+
+# 本地密钥/私有配置副本（真实值只在浏览器 GM_setValue 与你部署的 Apps Script 里）
+config.local
+*.local
+
+# 系统/编辑器杂项
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

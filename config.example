@@ -1,0 +1,14 @@
+# 稻荷神社 回复邮件提醒 · 需要你自己填的三处配置
+#
+# 本仓库不含任何真实密钥。下面是你部署时要填的值，填在各自位置即可，别提交回仓库。
+
+# ── 油猴脚本端（浏览器里，通过菜单「⚙ 设置」填，存 GM_setValue，不写进代码）──
+APPS_SCRIPT_URL=https://script.google.com/macros/s/xxxxxxxx/exec   # 你部署的 Web App，必须以 /exec 结尾
+TOKEN=换成你自己的随机口令                                          # 须与 Code.gs 里的 TOKEN 完全一致
+TO_EMAIL=你的收件邮箱@example.com                                   # 提醒发到哪
+
+# ── Apps Script 端（Code.gs 开头，粘进 script.google.com 后改）──
+# TO_EMAIL：与上面一致（脚本会随 POST 传 to，这里作为兜底默认值）
+# TOKEN   ：与上面一致
+#
+# 部署：右上「部署」→「新建部署」→ 类型「网络应用」→ 执行身份=我、访问=任何人 → 复制 /exec URL。
