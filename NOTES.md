@@ -51,15 +51,20 @@
 
 ## 待办 / 下一步
 
-- [x] **把密钥移出代码**（v1.3.0）：加「⚙ 设置」菜单，`URL/TOKEN/收件邮箱` 存 `GM_setValue`（键 `kitsune_cfg_url/_token/_email`）；脚本随 POST 传 `to`，Code.gs 已支持 `data.to` 兜底。代码无密钥。
+- [x] **把密钥移出代码**（v1.3.0）：`URL/TOKEN/收件邮箱` 存 `GM_setValue`（键 `kitsune_cfg_url/_token/_email`）；脚本随 POST 传 `to`，Code.gs 已支持 `data.to` 兜底。代码无密钥。
 - [x] `buildEmail` 链接 `href` 白名单（v1.3.0）：`safeLink()` 只放行 host=kitsune.ee 的 http(s) 链接，且 href 已 `escapeHtml`。
-- [x] 仓库骨架：`.gitignore`（AGENTS.md/CLAUDE.md/GEMINI.md/.omc/HANDOFF.md/*.local）、`config.example`、README 改为“菜单填密钥”。
-- [x] 增加 `type=at`（被@）提醒（v1.4.0）：「⚙ 设置」第④项开关（键 `kitsune_cfg_at`，默认关）；开启时 poll 多拉 `AT_PATH` 并与回复页合并去重、共享 seen/基线。**注：@页结构未真机验证**（默认关不影响现有使用）。
-- [ ] **待真机验证**：v1.4.0 重新导入 Tampermonkey → 点「⚙ 设置」填四项（含被@开关）→ 「① 测试邮件」能收到；若开启被@，需在真机确认 @提醒页能正常解析。
+- [x] 仓库骨架：`.gitignore`（AGENTS.md/CLAUDE.md/GEMINI.md/.omc/HANDOFF.md/*.local/.tmp）、`config.example`、README 改为面板填密钥。`NOTES.md` 进公开仓库；`HANDOFF.md` 仍本地忽略。
+- [x] 增加 `type=at`（被@）提醒（v1.4.0）：开关键 `kitsune_cfg_at`，默认关；开启时 poll 多拉 `AT_PATH` 并与回复页合并去重、共享 seen/基线。**注：@页结构未真机验证**（默认关不影响现有使用）。
+- [x] **居中管理面板**（v1.5.0）：右下角 48px 朱红图标打开居中面板（Shadow DOM，不吃论坛 CSS）；无 `alert`/`prompt`/`confirm`。提示条在页面上方居中，不与图标重叠。油猴菜单仅保留「打开稻荷提醒面板」。
+- [x] **立即检查 Failed to fetch / 测试邮件 408 重发**（v1.5.1）：提醒页先走页面 `unsafeWindow.fetch`（带登录 cookie），失败再 GM_xmlhttpRequest；网络失败不记 30s 节流。Apps Script HTTP 408/502/504 视为「可能已发出」：登记 seen、按钮冷却 45s，避免网关已发信再点出第二封。发信超时提到 45s。
+- [x] **408 走 onerror / 「论坛拦截」误判**（v1.5.2）：Tampermonkey 把 Apps Script HTTP 408 丢进 `onerror`（`status:408, statusText:Failed to fetch`），按 ambiguous 处理，不再报发送失败。拦截检测去掉「抱歉/安全提示/请稍候再试」——这些词在 Discuz 语言包几乎每页都有。条目解析按 `dl[notice]`，不依赖 `class="nts"`。
+- [x] **立即检查仍报拦截**（v1.5.3）：v1.5.2 把 `attackevasive` 当拦截信号，但 Discuz 每页 common.js 都有 `attackevasive = '0'`，所以每次检查必报拦截。现已去掉该词，只认正文「访问过于频繁/刷新过于频繁」。
+- [x] **待真机验证**：v1.5.3 重新导入 → 「立即检查」不再误报论坛拦截（2026-09-06 真机确认）。
+- [x] **公开仓库**：https://github.com/galact-byte/kitsune-notify （MIT）。`HANDOFF.md` 仍本地忽略；`NOTES.md` 进仓库作维护笔记。
 
 ## 维护提示
 
 - 改完跑 `node --check kitsune-notify.user.js`。
 - `Code.gs` 与油猴脚本里的 `TOKEN` 必须一致。
 - 抓论坛页调试：带 `--proxy http://127.0.0.1:7890`。
-- **频率拉黑教训（v1.4.1 起）**：被拉黑是 IP 级临时拦截（Discuz flood 防御），开不开脚本都进不去，等 5–10 分钟自解。别在验证时连点「②」——脚本已加 30s 手动节流；多提醒页必须**串行**拉（页间隔 3s），`Promise.all` 同时打两页会被判定突发。
+- **频率拉黑教训（v1.4.1 起）**：被拉黑是 IP 级临时拦截（Discuz flood 防御），开不开脚本都进不去，等 5–10 分钟自解。别在验证时连点「立即检查」——脚本已加 30s 手动节流；多提醒页必须**串行**拉（页间隔 3s），`Promise.all` 同时打两页会被判定突发。

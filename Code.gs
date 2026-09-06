@@ -13,7 +13,7 @@ var TO_EMAIL = 'REPLACE_收件邮箱@example.com';
 
 // 2) 校验口令：必须和油猴脚本里的 TOKEN 完全一致（防止别人乱调你的接口）。
 //    下面这个是我随机生成的，你可以直接用，也可以换成自己的——两边改成一样即可。
-var TOKEN = 'k1tsune_9f3a7c2e5b8140d6';
+var TOKEN = 'REPLACE_WITH_YOUR_TOKEN';
 // ==========================
 
 function doPost(e) {

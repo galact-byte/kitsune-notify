@@ -4,13 +4,19 @@ CLAUDE.md
 GEMINI.md
 .omc/
 
-# 交接/维护笔记（本地私有，含站点与调试细节）
+# 会话交接稿（含本机路径与过期待办，不进公开仓库）
 HANDOFF.md
-NOTES.md
 
 # 本地密钥/私有配置副本（真实值只在浏览器 GM_setValue 与你部署的 Apps Script 里）
 config.local
 *.local
+
+# 本地抓取/调试缓存
+.tmp/
+
+# 依赖与工具运行时
+node_modules/
+.until-done/
 
 # 系统/编辑器杂项
 .DS_Store
